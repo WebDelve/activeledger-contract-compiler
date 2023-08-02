@@ -191,9 +191,48 @@ func cleanFileName(raw string) string {
 	return clean
 }
 
+type importData struct {
+	packageName string
+	classes     []string
+}
+
 func removeDuplicateImports(imports []string) []string {
 	cleaned := []string{}
+	importCache := make(map[string]importData)
 
+	for _, i := range imports {
+		iData := importData{}
+
+		classStart := strings.Index(i, "{")
+		classEnd := strings.Index(i, "}")
+		classString := i[classStart+1 : classEnd]
+		if strings.Contains(classString, ",") {
+			iData.classes = strings.Split(classString, ",")
+		} else {
+			iData.classes = []string{classString}
+		}
+
+		startPkg := strings.Index(i, "\"")
+		endPkg := strings.LastIndex(i, "\"")
+
+		packageName := i[startPkg+1 : endPkg]
+		iData.packageName = packageName
+		// check if import cache already has importdata stored under this key
+		if len(importCache[packageName].classes) > 0 {
+			storedClasses := importCache[packageName].classes
+			// merge non duplicates
+			for _, cl := range iData.classes {
+				if contains(storedClasses, cl) {
+					continue
+				}
+
+				importCache[packageName].classes = append(importCache[packageName].classes, cl)
+			}
+		}
+
+		importCache[packageName] = iData
+
+	}
 	// This needs to be smarter, import lines might differ but still import dupes
 	// import { Activity, Standard } from "..."
 	// import { Standard } from "..."
