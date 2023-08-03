@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/WebDelve/activeledger-contract-compiler/config"
@@ -26,6 +27,11 @@ type Contract struct {
 	externalImports []string
 	localImports    []string
 	body            []string
+}
+
+type importData struct {
+	packageName string
+	classes     []string
 }
 
 func GetCompiler(config *config.Config, contractEntry string) Compiler {
@@ -81,12 +87,12 @@ func (c *Compiler) combine() {
 	for _, contract := range c.contracts {
 		imports = append(imports, contract.externalImports...)
 
-		body = append(body, fmt.Sprintf("// Combined contract %s\n", contract.name))
+		body = append(body, fmt.Sprintf("// Included from file %s.ts", contract.name))
 		body = append(body, contract.body...)
 		body = append(body, "")
 	}
 
-	imports = removeDuplicateImports(imports)
+	imports = buildImports(imports)
 
 	output := []string{}
 
@@ -108,7 +114,12 @@ func (c *Compiler) buildContract(name string, lines []string) {
 	}
 
 	for _, line := range lines {
-		if strings.Contains(line, "import") {
+		reg, err := regexp.Compile(`import+\s*{\s*([A-z]+,*\s*)*}\s*from\s*(\"|\').*`)
+		if err != nil {
+			helper.Error(err, "Error checking line against regex")
+		}
+
+		if reg.MatchString(line) {
 			importName, isLocal := c.processImport(line)
 			if isLocal {
 				contract.localImports = append(contract.localImports, importName)
@@ -191,62 +202,80 @@ func cleanFileName(raw string) string {
 	return clean
 }
 
-type importData struct {
-	packageName string
-	classes     []string
+func getClasses(line string) []string {
+	str := strings.Index(line, "{") + 1
+	end := strings.Index(line, "}")
+
+	classString := line[str:end]
+
+	if strings.Contains(classString, ",") {
+		return strings.Split(classString, ",")
+	}
+
+	return []string{classString}
 }
 
-func removeDuplicateImports(imports []string) []string {
+func getPackage(line string) string {
+	str := strings.Index(line, "\"") + 1
+	end := strings.LastIndex(line, "\"")
+
+	return line[str:end]
+}
+
+func buildImports(imports []string) []string {
 	cleaned := []string{}
 	importCache := make(map[string]importData)
 
 	for _, i := range imports {
 		iData := importData{}
 
-		classStart := strings.Index(i, "{")
-		classEnd := strings.Index(i, "}")
-		classString := i[classStart+1 : classEnd]
-		if strings.Contains(classString, ",") {
-			iData.classes = strings.Split(classString, ",")
-		} else {
-			iData.classes = []string{classString}
-		}
+		iData.classes = getClasses(i)
 
-		startPkg := strings.Index(i, "\"")
-		endPkg := strings.LastIndex(i, "\"")
-
-		packageName := i[startPkg+1 : endPkg]
+		packageName := getPackage(i)
 		iData.packageName = packageName
+
 		// check if import cache already has importdata stored under this key
 		if len(importCache[packageName].classes) > 0 {
-			storedClasses := importCache[packageName].classes
-			// merge non duplicates
-			for _, cl := range iData.classes {
-				if contains(storedClasses, cl) {
-					continue
-				}
 
-				importCache[packageName].classes = append(importCache[packageName].classes, cl)
+			if entry, ok := importCache[packageName]; ok {
+				storedClasses := entry.classes
+				// merge non duplicates
+				for _, cl := range iData.classes {
+					if contains(storedClasses, cl) {
+						continue
+					}
+
+					entry.classes = append(entry.classes, cl)
+				}
 			}
 		}
 
 		importCache[packageName] = iData
 
 	}
-	// This needs to be smarter, import lines might differ but still import dupes
-	// import { Activity, Standard } from "..."
-	// import { Standard } from "..."
-	// This will need to check the imports in {} but first make sure the from
-	// doesn't match either
-	for _, i := range imports {
-		if contains(cleaned, i) {
-			continue
-		}
 
-		cleaned = append(cleaned, i)
+	for k, v := range importCache {
+		impStr := buildImportLine(k, v.classes)
+		cleaned = append(cleaned, impStr)
 	}
 
 	return cleaned
+}
+
+func buildImportLine(packageName string, classes []string) string {
+	importLine := "import {"
+
+	for i := 0; i < len(classes); i++ {
+		importLine = importLine + classes[i]
+
+		if i != len(classes)-1 {
+			importLine = importLine + ","
+		}
+	}
+
+	importLine = fmt.Sprintf("%s} from \"%s\";", importLine, packageName)
+
+	return importLine
 }
 
 func contains(sl []string, str string) bool {
