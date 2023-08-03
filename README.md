@@ -57,13 +57,13 @@ Contract.
 
 Two CLI flags are available to be used.
 ```bash
-// Provide an entry file
+# Provide an entry file
 ./comp -p <smartcontractfolder>/<entryfile>.ts
 
-// Provide an output file path
+# Provide an output file path
 ./comp -o <output>.ts
 
-// Provide both
+# Provide both
 ./comp -p <smartcontractfolder>/<entryfile>.ts -o <output>.ts
 ```
 Example:
@@ -73,8 +73,16 @@ Example:
 This will look for a file called `main.ts` in the local directory `smartcontract`,
 and output to the local file `compiled.ts`.
 
-*Note:* `compiled.ts` will be created if it doesn't exist, and overwritten if
+**Note:** `compiled.ts` will be created if it doesn't exist, and overwritten if
 it does
+
+## Contract files
+Currently the software will look for local imports like the following
+```typescript
+import { Second } from "./second";
+```
+Where `Second` is a class exported from a file named `second.ts` in the same 
+directory as the provided entry file.
 
 
 
