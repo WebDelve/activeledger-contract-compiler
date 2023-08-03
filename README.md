@@ -76,13 +76,22 @@ and output to the local file `compiled.ts`.
 **Note:** `compiled.ts` will be created if it doesn't exist, and overwritten if
 it does
 
-## Contract files
+## Imports
+
 Currently the software will look for local imports like the following
 ```typescript
 import { Second } from "./second";
 ```
 Where `Second` is a class exported from a file named `second.ts` in the same 
 directory as the provided entry file.
+
+The software will include the entirety of the content in `second.ts` not just
+the imported class. It separates out the imports for processing, including all
+of them at the top of the output file. The rest of the body of `second.ts` will
+be included below, along with any other imported files and the entry file.
+
+This means that any interfaces, etc, that you have written in `second.ts` will
+also be included.
 
 
 
