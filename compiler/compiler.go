@@ -113,7 +113,20 @@ func (c *Compiler) buildContract(name string, lines []string) {
 		body:            []string{},
 	}
 
+	skipLine := false
 	for _, line := range lines {
+
+		if skipLine {
+			skipLine = false
+			continue
+		}
+
+		tempLine := strings.ToLower(line)
+		if strings.Contains(tempLine, "// $$ ignore") {
+			skipLine = true
+			continue
+		}
+
 		reg, err := regexp.Compile(`import+\s*{\s*([A-z]+,*\s*)*}\s*from\s*(\"|\').*`)
 		if err != nil {
 			helper.Error(err, "Error checking line against regex")

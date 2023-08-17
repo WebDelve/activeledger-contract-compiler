@@ -40,6 +40,58 @@ import { Activity, Standard } from "@activeledger/activeledgercontracts";
 ```
 that import line will only be included once in the output.
 
+Sometimes you might need to ignore lines (commonly local imports), you can do so
+by adding the following to the preceeding line:
+```typescript
+// $$ Ignore
+```
+
+`Ignore` is case insensitive, but the general structure of the comment should
+be followed. Also make sure you don't have an empty line inbetween the comment
+and the line you want to ignore, as the empty line will be ignored instead.
+
+
+```typescript
+
+// Fine
+
+// $$ Ignore
+import SomeClass from "./SomeClassFile.ts";
+
+// Fine
+
+// $$ ignore
+import SomeClass from "./SomeClassFile.ts";
+
+// Fine
+
+// $$ ignORE
+import SomeClass from "./SomeClassFile.ts";
+
+
+// Fine - extra text is ignored, as long as "// $$ ignore" is found as one 
+// unbroken string
+
+// $$ ignORE I'm ignoring this because some reason
+import SomeClass from "./SomeClassFile.ts";
+
+// Wrong - characters between // and $$
+
+// Some reason $$ Ignore
+import SomeClass from "./SomeClassFile.ts";
+
+// Wrong - Gap between ignore comment and line to ignore
+
+// $$ Ignore
+
+import SomeClass from "./SomeClassFile.ts";
+
+// Wrong - Missing a $
+
+// $ Ignore
+import SomeClass from "./SomeClassFile.ts";
+```
+
 ## Quick start
 
 ### Building
